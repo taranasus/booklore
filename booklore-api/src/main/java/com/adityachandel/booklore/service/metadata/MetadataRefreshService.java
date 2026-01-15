@@ -405,15 +405,6 @@ public class MetadataRefreshService {
     public BookMetadata buildFetchMetadata(Long bookId, MetadataRefreshOptions refreshOptions, Map<MetadataProvider, BookMetadata> metadataMap) {
         BookMetadata metadata = BookMetadata.builder().bookId(bookId).build();
 
-        // Log titles from each provider for debugging
-        log.info("MetadataRefresh: Building metadata from {} providers", metadataMap.size());
-        for (Map.Entry<MetadataProvider, BookMetadata> entry : metadataMap.entrySet()) {
-            BookMetadata providerMetadata = entry.getValue();
-            if (providerMetadata != null && providerMetadata.getTitle() != null) {
-                log.info("MetadataRefresh: {} returned title: '{}'", entry.getKey(), providerMetadata.getTitle());
-            }
-        }
-
         MetadataRefreshOptions.FieldOptions fieldOptions = refreshOptions.getFieldOptions();
         if (fieldOptions == null) {
             fieldOptions = new MetadataRefreshOptions.FieldOptions();
@@ -425,14 +416,7 @@ public class MetadataRefreshService {
         }
 
         if (enabledFields.isTitle()) {
-            String selectedTitle = resolveFieldAsString(metadataMap, fieldOptions.getTitle(), BookMetadata::getTitle);
-            log.info("MetadataRefresh: Selected title: '{}' (priority: P1={}, P2={}, P3={}, P4={})",
-                    selectedTitle,
-                    fieldOptions.getTitle() != null ? fieldOptions.getTitle().getP1() : "null",
-                    fieldOptions.getTitle() != null ? fieldOptions.getTitle().getP2() : "null",
-                    fieldOptions.getTitle() != null ? fieldOptions.getTitle().getP3() : "null",
-                    fieldOptions.getTitle() != null ? fieldOptions.getTitle().getP4() : "null");
-            metadata.setTitle(selectedTitle);
+            metadata.setTitle(resolveFieldAsString(metadataMap, fieldOptions.getTitle(), BookMetadata::getTitle));
         }
         if (enabledFields.isSubtitle()) {
             metadata.setSubtitle(resolveFieldAsString(metadataMap, fieldOptions.getSubtitle(), BookMetadata::getSubtitle));

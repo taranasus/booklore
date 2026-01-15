@@ -114,7 +114,7 @@ public class AmazonBookParser implements BookParser {
         }
 
         if (candidates.size() > 1 && searchTerm != null && !searchTerm.isBlank()) {
-            log.info("Amazon: Scoring {} candidates against query '{}'", candidates.size(), searchTerm);
+            log.debug("Amazon: Scoring {} candidates against query '{}'", candidates.size(), searchTerm);
             return selectBestMatch(candidates, searchTerm);
         }
 
@@ -985,19 +985,11 @@ public class AmazonBookParser implements BookParser {
             return candidates.get(0);
         }
 
-        // Log scores for all candidates
-        for (BookMetadata candidate : candidates) {
-            int score = scoreResult(candidate, query);
-            log.info("Amazon: Candidate '{}' scored {} points (categories: {})",
-                    candidate.getTitle(), score,
-                    candidate.getCategories() != null ? candidate.getCategories() : "none");
-        }
-
         BookMetadata best = candidates.stream()
                 .max(Comparator.comparingInt(c -> scoreResult(c, query)))
                 .orElse(candidates.get(0));
 
-        log.info("Amazon: Selected best match: '{}'", best.getTitle());
+        log.debug("Amazon: Selected best match '{}' from {} candidates", best.getTitle(), candidates.size());
         return best;
     }
 
