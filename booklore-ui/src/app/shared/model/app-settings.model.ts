@@ -157,7 +157,7 @@ export interface AppSettings {
   koboSettings: KoboSettings;
   coverCroppingSettings: CoverCroppingSettings;
   metadataDownloadOnBookdrop: boolean;
-  bookdropAutoImportEnabled: boolean;
+  autoImportEnabled: boolean;
   telemetryEnabled: boolean;
 }
 
