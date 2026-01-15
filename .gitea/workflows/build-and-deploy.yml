@@ -1,0 +1,123 @@
+name: Build and Deploy Booklore
+
+on:
+  push:
+    branches:
+      - develop
+      - feature/*
+  pull_request:
+    branches:
+      - develop
+
+env:
+  IMAGE_NAME: booklore-custom
+  UNRAID_HOST: 192.168.1.141
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version info
+        id: version
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "version=$(date +%Y.%m.%d)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build Docker Image on UNRAID
+        env:
+          UNRAID_SSH_PASS: ${{ secrets.UNRAID_SSH_PASS }}
+        run: |
+          # Create a tarball of the source code
+          tar -czf source.tar.gz --exclude='.git' --exclude='node_modules' --exclude='build' .
+
+          # Copy source to UNRAID
+          sshpass -p "$UNRAID_SSH_PASS" scp -o StrictHostKeyChecking=no \
+            source.tar.gz \
+            root@${{ env.UNRAID_HOST }}:/tmp/booklore-source.tar.gz
+
+          # Build on UNRAID
+          sshpass -p "$UNRAID_SSH_PASS" ssh -o StrictHostKeyChecking=no root@${{ env.UNRAID_HOST }} << 'ENDSSH'
+          set -e
+
+          echo "=== Extracting source code ==="
+          rm -rf /tmp/booklore-build
+          mkdir -p /tmp/booklore-build
+          cd /tmp/booklore-build
+          tar -xzf /tmp/booklore-source.tar.gz
+
+          echo "=== Building Docker image ==="
+          docker build \
+            --build-arg APP_VERSION="${{ steps.version.outputs.version }}" \
+            --build-arg APP_REVISION="${{ github.sha }}" \
+            -t ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.sha_short }} \
+            -t ${{ env.IMAGE_NAME }}:latest \
+            .
+
+          echo "=== Cleaning up build files ==="
+          rm -rf /tmp/booklore-build /tmp/booklore-source.tar.gz
+
+          echo "=== Build complete ==="
+          docker images | grep ${{ env.IMAGE_NAME }}
+          ENDSSH
+
+          # Cleanup local tarball
+          rm -f source.tar.gz
+
+      - name: Deploy to UNRAID
+        if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+        env:
+          UNRAID_SSH_PASS: ${{ secrets.UNRAID_SSH_PASS }}
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        run: |
+          sshpass -p "$UNRAID_SSH_PASS" ssh -o StrictHostKeyChecking=no root@${{ env.UNRAID_HOST }} << ENDSSH
+          set -e
+
+          echo "=== Stopping existing container ==="
+          docker stop booklore || true
+          docker rm booklore || true
+
+          echo "=== Starting new container ==="
+          docker run -d \
+            --name booklore \
+            --restart=unless-stopped \
+            -p 6060:6060 \
+            -v /mnt/user/books:/books:rw \
+            -v /mnt/user/appdata/booklore/bookdrop:/bookdrop:rw \
+            -v /mnt/user/appdata/booklore/data:/app/data:rw \
+            -e DATABASE_URL=jdbc:mariadb://192.168.1.141:3306/booklore \
+            -e DATABASE_USERNAME=booklore \
+            -e DATABASE_PASSWORD=${DATABASE_PASSWORD} \
+            -e BOOKLORE_PORT=6060 \
+            -e TZ=Europe/London \
+            --log-opt max-size=50m \
+            --log-opt max-file=1 \
+            --label "net.unraid.docker.managed=dockerman" \
+            --label "net.unraid.docker.webui=http://192.168.1.141:6060" \
+            --label "net.unraid.docker.icon=https://raw.githubusercontent.com/booklore-app/booklore/develop/booklore-ui/src/assets/favicon.svg" \
+            ${{ env.IMAGE_NAME }}:latest
+
+          echo "=== Waiting for container to start ==="
+          sleep 5
+
+          echo "=== Verifying deployment ==="
+          docker ps | grep booklore
+
+          echo "=== Checking container logs ==="
+          docker logs booklore --tail 20
+
+          echo "=== Deployment complete! ==="
+          ENDSSH
+
+      - name: Verify Application Health
+        if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+        run: |
+          echo "Waiting for application to be ready..."
+          sleep 30
+
+          # Check if the application responds
+          curl -f -s -o /dev/null -w "%{http_code}" http://${{ env.UNRAID_HOST }}:6060 || echo "Application may still be starting..."
