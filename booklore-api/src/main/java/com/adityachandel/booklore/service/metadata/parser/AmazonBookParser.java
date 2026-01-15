@@ -985,9 +985,20 @@ public class AmazonBookParser implements BookParser {
             return candidates.get(0);
         }
 
-        return candidates.stream()
+        // Log scores for all candidates
+        for (BookMetadata candidate : candidates) {
+            int score = scoreResult(candidate, query);
+            log.info("Amazon: Candidate '{}' scored {} points (categories: {})",
+                    candidate.getTitle(), score,
+                    candidate.getCategories() != null ? candidate.getCategories() : "none");
+        }
+
+        BookMetadata best = candidates.stream()
                 .max(Comparator.comparingInt(c -> scoreResult(c, query)))
                 .orElse(candidates.get(0));
+
+        log.info("Amazon: Selected best match: '{}'", best.getTitle());
+        return best;
     }
 
     /**
