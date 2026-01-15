@@ -31,20 +31,20 @@ jobs:
           UNRAID_SSH_PASS: ${{ secrets.UNRAID_SSH_PASS }}
         run: |
           # Create a tarball of the source code (exclude large directories)
-          tar -czf source.tar.gz \
+          # Write to /tmp to avoid "file changed as we read it" error
+          tar -czf /tmp/source.tar.gz \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='build' \
-            --exclude='*.tar.gz' \
             .
 
           # Copy source to UNRAID
           sshpass -p "$UNRAID_SSH_PASS" scp -o StrictHostKeyChecking=no \
-            source.tar.gz \
+            /tmp/source.tar.gz \
             root@${{ env.UNRAID_HOST }}:/tmp/booklore-source.tar.gz
 
           # Cleanup local tarball immediately
-          rm -f source.tar.gz
+          rm -f /tmp/source.tar.gz
 
           # Build on UNRAID
           sshpass -p "$UNRAID_SSH_PASS" ssh -o StrictHostKeyChecking=no root@${{ env.UNRAID_HOST }} 'set -e && \
