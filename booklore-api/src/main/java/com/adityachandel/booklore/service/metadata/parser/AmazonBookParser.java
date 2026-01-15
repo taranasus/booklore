@@ -107,7 +107,12 @@ public class AmazonBookParser implements BookParser {
             return null;
         }
 
+        // Use title from request, or fall back to filename for scoring
         String searchTerm = fetchMetadataRequest.getTitle();
+        if (searchTerm == null || searchTerm.isBlank()) {
+            searchTerm = BookUtils.cleanFileName(book.getFileName());
+        }
+
         if (candidates.size() > 1 && searchTerm != null && !searchTerm.isBlank()) {
             log.info("Amazon: Scoring {} candidates against query '{}'", candidates.size(), searchTerm);
             return selectBestMatch(candidates, searchTerm);
