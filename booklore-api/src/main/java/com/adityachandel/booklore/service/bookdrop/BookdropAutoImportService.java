@@ -13,8 +13,8 @@ import com.adityachandel.booklore.repository.LibraryRepository;
 import com.adityachandel.booklore.service.NotificationService;
 import com.adityachandel.booklore.service.appsettings.AppSettingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -33,7 +33,6 @@ import java.util.Set;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class BookdropAutoImportService {
 
     private final AppSettingService appSettingService;
@@ -42,6 +41,21 @@ public class BookdropAutoImportService {
     private final BookdropFileRepository bookdropFileRepository;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
+
+    public BookdropAutoImportService(
+            AppSettingService appSettingService,
+            @Lazy BookDropService bookDropService,
+            LibraryRepository libraryRepository,
+            BookdropFileRepository bookdropFileRepository,
+            NotificationService notificationService,
+            ObjectMapper objectMapper) {
+        this.appSettingService = appSettingService;
+        this.bookDropService = bookDropService;
+        this.libraryRepository = libraryRepository;
+        this.bookdropFileRepository = bookdropFileRepository;
+        this.notificationService = notificationService;
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * Attempts to auto-import a bookdrop file if conditions are met.
