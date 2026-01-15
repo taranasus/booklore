@@ -13,6 +13,7 @@ import com.adityachandel.booklore.repository.LibraryRepository;
 import com.adityachandel.booklore.service.NotificationService;
 import com.adityachandel.booklore.service.appsettings.AppSettingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -63,6 +64,7 @@ public class BookdropAutoImportService {
      * @param bookdropFileId The ID of the bookdrop file entity to potentially auto-import
      * @return true if the file was auto-imported, false if it remains for manual review
      */
+    @Transactional
     public boolean attemptAutoImport(Long bookdropFileId) {
         // Check if auto-import is enabled
         if (!appSettingService.getAppSettings().isAutoImportEnabled()) {
