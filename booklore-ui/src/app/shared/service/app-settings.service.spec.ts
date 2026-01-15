@@ -105,6 +105,7 @@ describe('AppSettingsService', () => {
       smartCroppingEnabled: false
     },
     metadataDownloadOnBookdrop: false,
+    bookdropAutoImportEnabled: false,
     telemetryEnabled: false
   };
 
@@ -457,6 +458,7 @@ describe('AppSettingsService - API Contract Tests', () => {
           smartCroppingEnabled: false
         },
         metadataDownloadOnBookdrop: false,
+        bookdropAutoImportEnabled: false,
         telemetryEnabled: false
       };
       httpClientMock.get.mockReturnValue(of(mockSettings));
