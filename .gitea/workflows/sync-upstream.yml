@@ -21,6 +21,9 @@ jobs:
         run: |
           git config user.name "Gitea Actions"
           git config user.email "actions@git.taranasus.xyz"
+          # Fix git pack config that may cause push failures
+          git config --unset-all pack.deltacachesize || true
+          git config pack.deltacachesize 128m
 
       - name: Add upstream remote
         run: |
