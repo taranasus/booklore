@@ -1,0 +1,124 @@
+name: Sync with Upstream
+
+on:
+  schedule:
+    # Run daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    # Allow manual trigger from Gitea Actions UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITEATOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "Gitea Actions"
+          git config user.email "actions@git.taranasus.xyz"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/booklore-app/booklore.git
+          git fetch upstream
+          echo "Fetched upstream repository"
+
+      - name: Check for new commits
+        id: check
+        run: |
+          UPSTREAM_SHA=$(git rev-parse upstream/develop)
+          LOCAL_SHA=$(git rev-parse HEAD)
+
+          echo "Upstream SHA: $UPSTREAM_SHA"
+          echo "Local SHA: $LOCAL_SHA"
+
+          if git merge-base --is-ancestor $UPSTREAM_SHA HEAD; then
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "✓ Already up to date with upstream"
+          else
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "⚡ New upstream commits found:"
+            echo ""
+            git log HEAD..upstream/develop --oneline | head -20
+            echo ""
+            COMMIT_COUNT=$(git log HEAD..upstream/develop --oneline | wc -l)
+            echo "Total new commits: $COMMIT_COUNT"
+          fi
+
+      - name: Attempt merge
+        id: merge
+        if: steps.check.outputs.has_updates == 'true'
+        continue-on-error: true
+        run: |
+          echo "Attempting to merge upstream/develop..."
+          git merge upstream/develop -m "Merge upstream develop ($(date +%Y-%m-%d))
+
+          Automated sync from https://github.com/booklore-app/booklore"
+
+      - name: Handle merge result
+        if: steps.check.outputs.has_updates == 'true'
+        env:
+          MERGE_OUTCOME: ${{ steps.merge.outcome }}
+        run: |
+          if [ "$MERGE_OUTCOME" == "success" ]; then
+            echo "✓ Merge successful!"
+            echo ""
+            echo "Pushing to origin..."
+            git push origin develop
+            echo "MERGE_STATUS=success" >> $GITHUB_ENV
+            echo ""
+            echo "✓ Sync complete! Build/deploy workflow will be triggered."
+          else
+            echo "✗ Merge has conflicts!"
+            echo ""
+            echo "Conflicting files:"
+            git diff --name-only --diff-filter=U || true
+            echo ""
+            git merge --abort
+            echo "MERGE_STATUS=conflict" >> $GITHUB_ENV
+            echo ""
+            echo "Manual intervention required."
+          fi
+
+      - name: Create issue on conflict
+        if: env.MERGE_STATUS == 'conflict'
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+        run: |
+          # Get list of recent upstream commits for context
+          COMMITS=$(git log HEAD..upstream/develop --oneline | head -10)
+
+          # Create issue via Gitea API
+          curl -X POST \
+            -H "Authorization: token $GITEA_TOKEN" \
+            -H "Content-Type: application/json" \
+            "$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY/issues" \
+            -d @- << EOF
+          {
+            "title": "⚠️ Upstream sync conflict - $(date +%Y-%m-%d)",
+            "body": "## Automated upstream sync failed\n\nThe scheduled sync with [booklore-app/booklore](https://github.com/booklore-app/booklore) encountered merge conflicts.\n\n### Action Required\n\nManual merge is needed. Run these commands locally:\n\n\`\`\`bash\n# Fetch latest\ngit fetch upstream\ngit fetch gitea\n\n# Checkout and merge\ngit checkout develop\ngit merge upstream/develop\n\n# Resolve conflicts in your editor, then:\ngit add .\ngit commit -m \"Merge upstream develop - resolved conflicts\"\n\n# Push (triggers build/deploy)\ngit push gitea develop\n\`\`\`\n\n### Recent Upstream Commits\n\n\`\`\`\n$COMMITS\n\`\`\`\n\n[View all upstream changes](https://github.com/booklore-app/booklore/commits/develop)",
+            "labels": ["upstream-sync", "needs-attention"]
+          }
+          EOF
+
+          echo ""
+          echo "✓ Created issue to track manual resolution"
+
+      - name: Summary
+        run: |
+          echo "========================================"
+          echo "           SYNC SUMMARY"
+          echo "========================================"
+          if [ "${{ steps.check.outputs.has_updates }}" == "false" ]; then
+            echo "Status: ✓ Already up to date"
+          elif [ "${{ env.MERGE_STATUS }}" == "success" ]; then
+            echo "Status: ✓ Synced successfully"
+          elif [ "${{ env.MERGE_STATUS }}" == "conflict" ]; then
+            echo "Status: ⚠️ Conflicts - manual merge required"
+          fi
+          echo "========================================"
