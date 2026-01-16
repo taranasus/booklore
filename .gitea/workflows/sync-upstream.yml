@@ -21,7 +21,9 @@ jobs:
         run: |
           git config user.name "Gitea Actions"
           git config user.email "actions@git.taranasus.xyz"
-          # Fix git pack config that may cause push failures
+          # Fix git pack config that may cause push failures (both global and local)
+          git config --global --unset-all pack.deltacachesize || true
+          git config --global pack.deltacachesize 128m
           git config --unset-all pack.deltacachesize || true
           git config pack.deltacachesize 128m
 
