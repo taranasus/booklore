@@ -21,6 +21,8 @@ describe('AppSettingsService', () => {
     libraryMetadataRefreshOptions: [],
     uploadPattern: '',
     opdsServerEnabled: false,
+    komgaApiEnabled: false,
+    komgaGroupUnknown: false,
     remoteAuthEnabled: false,
     oidcEnabled: true,
     oidcProviderDetails: {
@@ -106,7 +108,25 @@ describe('AppSettingsService', () => {
     },
     metadataDownloadOnBookdrop: false,
     autoImportEnabled: false,
-    telemetryEnabled: false
+    telemetryEnabled: false,
+    metadataProviderSpecificFields: {
+      asin: false,
+      amazonRating: false,
+      amazonReviewCount: false,
+      googleId: false,
+      goodreadsId: false,
+      goodreadsRating: false,
+      goodreadsReviewCount: false,
+      hardcoverId: false,
+      hardcoverBookId: false,
+      hardcoverRating: false,
+      hardcoverReviewCount: false,
+      comicvineId: false,
+      lubimyczytacId: false,
+      lubimyczytacRating: false,
+      ranobedbId: false,
+      ranobedbRating: false
+    }
   };
 
   const mockPublicSettings: PublicAppSettings = {
@@ -374,6 +394,8 @@ describe('AppSettingsService - API Contract Tests', () => {
         libraryMetadataRefreshOptions: [],
         uploadPattern: '',
         opdsServerEnabled: false,
+        komgaApiEnabled: false,
+        komgaGroupUnknown: false,
         remoteAuthEnabled: false,
         oidcEnabled: true,
         oidcProviderDetails: {
@@ -459,7 +481,25 @@ describe('AppSettingsService - API Contract Tests', () => {
         },
         metadataDownloadOnBookdrop: false,
         autoImportEnabled: false,
-        telemetryEnabled: false
+        telemetryEnabled: false,
+        metadataProviderSpecificFields: {
+          asin: false,
+          amazonRating: false,
+          amazonReviewCount: false,
+          googleId: false,
+          goodreadsId: false,
+          goodreadsRating: false,
+          goodreadsReviewCount: false,
+          hardcoverId: false,
+          hardcoverBookId: false,
+          hardcoverRating: false,
+          hardcoverReviewCount: false,
+          comicvineId: false,
+          lubimyczytacId: false,
+          lubimyczytacRating: false,
+          ranobedbId: false,
+          ranobedbRating: false
+        }
       };
       httpClientMock.get.mockReturnValue(of(mockSettings));
       service['fetchAppSettings']().subscribe(settings => {
